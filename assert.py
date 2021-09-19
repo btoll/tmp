@@ -10,28 +10,21 @@ def main():
     instance = os.environ["PD_SERVICE"]
     if not instance:
         raise RuntimeError("No instance name")
+
     environment = "stg"
-    service = "service"
-    domain = "consul"
-
-    protocol = "http"
     # ex. stg.event-storage-ex-api.service.consul
-    instance_name = ".".join((environment, instance, service, domain))
+    instance_name = ".".join((environment, instance, "service", "consul"))
 
     print("-------------------------------")
     print("-------------------------------")
-    print("[INFO] Instance name")
-    print(instance_name)
+    print("[INFO] Instance name: ", instance_name)
 
     port = subprocess.getoutput(f"dig +short {instance_name} SRV | cut -d\  -f3")
     if not port:
         raise RuntimeError("No service port")
 
     socket = ":".join((instance_name, port))
-    service = "://".join((protocol, socket))
-    headers = {
-        "Content-Type": "application/json"
-    }
+    service = "://".join(("http", socket))
 
     test_dir = os.environ["TEST_DIR"]
     test_file = "assert.json"
@@ -44,8 +37,7 @@ def main():
         j = json.load(fp)
 
     print("-------------------------------")
-    print("[INFO] Running tests")
-    print(service)
+    print("[INFO] Service: ", service)
     print("-------------------------------")
 
     passed = 0
@@ -54,7 +46,9 @@ def main():
         response = requests.request(
             test["action"] if "action" in test else "GET",
             "/".join((service, test["endpoint"])),
-            headers = headers,
+            headers = {
+                "Content-Type": "application/json"
+            },
             json = test["body"] if "body" in test else "",
         )
 
