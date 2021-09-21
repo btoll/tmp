@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"reflect"
 	"strings"
 )
 
@@ -36,7 +37,7 @@ func main() {
 
 	socket := strings.Join([]string{instanceName, strings.TrimSuffix(string(port), "\n")}, ":")
 	service := strings.Join([]string{"http", socket}, "://")
-	fmt.Printf("[INFO] Service: %s\n", service)
+	fmt.Printf("[INFO] Service endpoint: %s\n", service)
 
 	testPath := strings.Join([]string{"/workdir", testDir, "assert.json"}, "/")
 	data, err := ioutil.ReadFile(testPath)
@@ -44,14 +45,15 @@ func main() {
 		exit(fmt.Sprint(err) + ": " + string(testPath))
 	}
 
-	var suite Suite
-	err = json.Unmarshal(data, &suite)
+	var tests []Test
+	err = json.Unmarshal(data, &tests)
 	if err != nil {
-		exit("Could not parse JSON document.")
+		exit(fmt.Sprint(err))
 	}
 
+	suite := New(tests)
+
 	for _, test := range suite.Tests {
-		fmt.Println("Endpoint test:", test)
 		reqBody, err := json.Marshal(test.Body)
 		if err != nil {
 			exit(fmt.Sprintf("Bad JSON %s\n", test.Body))
@@ -74,8 +76,17 @@ func main() {
 		}
 		defer resp.Body.Close()
 
-		// TODO
+		var res map[string]interface{}
+		decoder := json.NewDecoder(resp.Body)
+		err = decoder.Decode(&res)
+		if err != nil {
+			exit(fmt.Sprintf("Could not decode raw JSON in the response: %s", resp.Body))
+		}
+
+		suite.Assert(test, res)
 	}
+
+	suite.Log()
 }
 
 type Test struct {
@@ -87,7 +98,36 @@ type Test struct {
 }
 
 type Suite struct {
-	Tests []Test `json:"tests"`
+	Total  int
+	Passed int
+	Tests  []Test `json:"tests"`
+}
+
+func New(tests []Test) Suite {
+	return Suite{
+		Total:  len(tests),
+		Passed: 0,
+		Tests:  tests,
+	}
+}
+
+func (s *Suite) Assert(test Test, res map[string]interface{}) {
+	if reflect.DeepEqual(test.Assert, res) {
+		s.Passed++
+		fmt.Println(fmt.Sprintf("%s...passed", test.Name))
+	} else {
+		fmt.Println(fmt.Sprintf("%s...failed", test.Name))
+	}
+}
+
+func (s Suite) Log() {
+	fmt.Println("[INFO] Test results:")
+	fmt.Println("Total tests: ", s.Total)
+	fmt.Println(fmt.Sprintf("\t%d...passed", s.Passed))
+	fmt.Println(fmt.Sprintf("\t%d...failed", s.Total-s.Passed))
+	if s.Passed != s.Total {
+		exit("One or more tests failed, exiting...")
+	}
 }
 
 func exit(msg string) {
