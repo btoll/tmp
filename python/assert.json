@@ -1,0 +1,73 @@
+[
+    {
+        "name": "accepts an array of objects",
+        "action": "PUT",
+        "endpoint": "raw_events",
+        "body": [
+            {
+                "id": "48d36176-11a3-11ec-82a8-0242ac130003",
+                "event_type": "Generic",
+                "raw_event": {
+                    "source": "prod-LOCALPIPE"
+                }
+            }
+        ],
+        "assert": {
+            "saved_events": ["48d36176-11a3-11ec-82a8-0242ac130003"]
+        }
+    },
+    {
+        "name": "finds single event",
+        "action": "GET",
+        "endpoint": "raw_events",
+        "body": ["48d36176-11a3-11ec-82a8-0242ac130003"],
+        "assert": {
+            "not_found": [],
+            "events": [
+                {
+                    "raw_event": {
+                        "source": "prod-LOCALPIPE"
+                    },
+                    "id": "48d36176-11a3-11ec-82a8-0242ac130003",
+                    "event_type": "Generic"
+                }
+            ]
+        }
+    },
+    {
+        "name": "accepts an array of objects",
+        "action": "PUT",
+        "endpoint": "event_summaries",
+        "body": [
+            {
+                "id": "456",
+                "event_type": "Email",
+                "event_summary": {
+                    "subject": "our servers are on fire!"
+                }
+            }
+        ],
+        "assert": {
+            "saved_events": ["456"]
+        }
+    },
+    {
+        "name": "finds single summary",
+        "action": "GET",
+        "endpoint": "event_summaries",
+        "body": ["456"],
+        "assert": {
+            "not_found": [],
+            "events": [
+                {
+                    "event_summary": {
+                        "subject": "our servers are on fire!"
+                    },
+                    "id": "456",
+                    "event_type": "Email"
+                }
+            ]
+        }
+    }
+]
+
