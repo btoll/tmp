@@ -41,7 +41,6 @@ def main():
     print("-------------------------------")
 
     passed = 0
-    failed = 0
     for test in j["tests"]:
         response = requests.request(
             test["action"] if "action" in test else "GET",
@@ -59,15 +58,15 @@ def main():
             passed += 1
         except AssertionError:
             print(f"{test['name']}...failed")
-            failed += 1
 
+    total_tests = len(j["tests"])
     print("-------------------------------")
     print("[INFO] Test results:")
-    print(f"Total tests: {passed + failed}")
+    print(f"Total tests: {total_tests}")
     print(f"\t\t{passed} passed")
-    print(f"\t\t{failed} failed")
+    print(f"\t\t{total_tests - passed} failed")
 
-    if failed:
+    if passed != total_tests:
         raise Exception("One or more tests failed, exiting...")
 
     print("-------------------------------")
