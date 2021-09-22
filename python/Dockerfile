@@ -1,19 +1,16 @@
-FROM python:slim-bullseye
+FROM python:3.9-slim  AS build-env
 
-ENV HOME /home/test
-RUN useradd --create-home --home-dir $HOME test
+WORKDIR /
+ADD assert.py ./
 
-RUN apt-get update \
-    && apt-get install dnsutils -y
+RUN pip3 install --upgrade pip && \
+    pip install requests
 
-WORKDIR $HOME
+FROM gcr.io/distroless/python3-debian10
+COPY --from=build-env assert.py ./
+COPY --from=build-env /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
 
-COPY assert.py ./
-RUN chown -R test:test $HOME
-
-USER test
-
-RUN python -m pip install requests --no-warn-script-location
-
-CMD ["python", "assert.py"]
+WORKDIR /
+ENV PYTHONPATH=/usr/local/lib/python3.9/site-packages
+CMD ["assert.py"]
 
