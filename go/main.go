@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"reflect"
 	"strings"
+	"sync"
 )
 
 func main() {
@@ -53,39 +54,46 @@ func main() {
 
 	suite := New(tests)
 
+	var wg sync.WaitGroup
+	wg.Add(suite.Total)
+
 	for _, test := range suite.Tests {
-		reqBody, err := json.Marshal(test.Body)
-		if err != nil {
-			exit(fmt.Sprintf("Bad JSON %s\n", test.Body))
-		}
+		go func(test Test) {
+			reqBody, err := json.Marshal(test.Body)
+			if err != nil {
+				exit(fmt.Sprintf("Bad JSON %s\n", test.Body))
+			}
 
-		req, err := http.NewRequest(
-			test.Action,
-			strings.Join([]string{service, test.Endpoint}, "/"),
-			bytes.NewBuffer(reqBody),
-		)
-		if err != nil {
-			exit(fmt.Sprint(err))
-		}
-		req.Header.Set("Content-Type", "application/json")
+			req, err := http.NewRequest(
+				test.Action,
+				strings.Join([]string{service, test.Endpoint}, "/"),
+				bytes.NewBuffer(reqBody),
+			)
+			if err != nil {
+				exit(fmt.Sprint(err))
+			}
+			req.Header.Set("Content-Type", "application/json")
 
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			exit(fmt.Sprintf("Request `%s` failed\n", test.Name))
-		}
-		defer resp.Body.Close()
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			if err != nil {
+				exit(fmt.Sprintf("Request `%s` failed\n", test.Name))
+			}
+			defer resp.Body.Close()
 
-		var res map[string]interface{}
-		decoder := json.NewDecoder(resp.Body)
-		err = decoder.Decode(&res)
-		if err != nil {
-			exit(fmt.Sprintf("Could not decode raw JSON in the response: %s", resp.Body))
-		}
+			var res map[string]interface{}
+			decoder := json.NewDecoder(resp.Body)
+			err = decoder.Decode(&res)
+			if err != nil {
+				exit(fmt.Sprintf("Could not decode raw JSON in the response: %s", resp.Body))
+			}
 
-		suite.Assert(test, res)
+			suite.Assert(test, res)
+			wg.Done()
+		}(test)
 	}
 
+	wg.Wait()
 	suite.Log()
 }
 
