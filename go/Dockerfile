@@ -1,15 +1,5 @@
-FROM ubuntu
+FROM gcr.io/distroless/base
 
-ENV DEBIAN_FRONTEND noninteractive
-RUN apt-get update \
-    && apt-get install build-essential dnsutils -y
-
-ENV HOME /home/test
-RUN useradd --create-home --home-dir $HOME test
-
-COPY gotest /usr/bin/
-
-USER test
-
+ADD gotest /usr/bin/
 ENTRYPOINT ["gotest"]
 
